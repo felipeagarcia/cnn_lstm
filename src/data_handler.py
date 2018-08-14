@@ -1,44 +1,49 @@
 # -*- coding: utf-8 -*-
 '''
-Created on May 14 2018
+Created on Aug 01 2018
 
 @author : Felipe Aparecido Garcia
 @github: https://github.com/felipeagarcia/
 
 Open and prepare the data
-content: train data
-test_content: test data
 '''
 
 import numpy as np
-import math
+import csv
+from sklearn.preprocessing import normalize as norm
 
-# openning data file
-with open('../data/X_train.txt', 'r') as data:
-    # separating lines
-    content = data.readlines()
-# removing whitespaces
-content = [list(map(float, x.split())) for x in content]
 
-# openning label file
-with open('../data/y_train.txt', 'r') as data:
-    # separating lines
-    labels = data.readlines()
-# removing whitespaces
-labels = [list(map(int, x.split())) for x in labels]
-
-with open('../data/X_test.txt', 'r') as data:
-    # separating lines
-    test_content = data.readlines()
-# removing whitespaces
-test_content = [list(map(float, x.split())) for x in test_content]
-
-# openning label file
-with open('../data/y_test.txt', 'r') as data:
-    # separating lines
-    test_labels = data.readlines()
-# removing whitespaces
-test_labels = [list(map(int, x.split())) for x in test_labels]
+def open_data(max_len, num_activities=19, num_seqs=10):
+    data = []
+    labels = []
+    for i in range(num_activities):
+        for j in range(num_seqs):
+            i += 1
+            i = str(i)
+            if len(i) == 1:
+                i = '0' + i
+            j += 1
+            j = str(j)
+            if len(j) == 1:
+                j = '0' + j
+            with open('../data/act' + i + 'seq' + j + '.csv', 'r') as file:
+                aux = list(csv.reader(file))
+                aux = [list(map(float, x)) for x in aux]
+                while(len(aux) < max_len):
+                    aux.insert(0, list(np.zeros(len(aux[-1]))))
+                data.append(aux)
+                label = np.zeros(num_activities)
+                label[int(i) - 1] = 1
+                labels.append(label)
+            i = int(i)
+            j = int(j)
+            i -= 1
+            j -= 1
+    aux = list(zip(data, labels))
+    np.random.shuffle(aux)
+    data[:], labels[:] = zip(*aux)
+    data = [norm(x) for x in data]
+    return data, labels
 
 
 def prepare_data(data, labels, length):
