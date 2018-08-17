@@ -13,7 +13,7 @@ import csv
 from sklearn.preprocessing import normalize as norm
 
 
-def open_data(max_len, num_activities=19, num_seqs=10):
+def open_data(max_len, num_activities=20, num_seqs=10):
     data = []
     labels = []
     for i in range(num_activities):

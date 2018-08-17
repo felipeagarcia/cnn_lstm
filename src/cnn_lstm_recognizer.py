@@ -5,55 +5,53 @@ import numpy as np
 
 # data format: 150 x 19
 hm_epochs = 1000
-n_classes = 19
+n_classes = 20
 batch_size = 8
 chunk_size = 19
 n_chunks = 153
-rnn_size = 256
+rnn_size = 124
 max_len = 153
 
 x = tf.placeholder(tf.float32, [None, n_chunks, chunk_size])
-y = tf.placeholder('float')
+y = tf.placeholder('float', [None, n_classes])
 
 # keep_rate = 0.8
 # keep_prob = tf.placeholder(tf.float32)
 
 inputs, labels = data.open_data(max_len=max_len)
 inputs, labels = np.array(inputs), np.array(labels)
-print(len(inputs), len(labels))
 test_inputs = inputs[int(0.8*len(inputs)):len(inputs)]
 test_labels = labels[int(0.8*len(labels)):len(labels)]
 inputs = inputs[0:int(0.8*len(inputs))]
 labels = labels[0:int(0.8*len(labels))]
-lengs = [len(x) for x in inputs]
-print(lengs, max(lengs))
 
 
-def conv2d(x, W):
-    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+def conv1d(x, W):
+    return tf.nn.conv1d(x, W, stride=2, padding='SAME')
 
 
-def maxpool2d(x):
+def maxpool1d(x):
     #                        size of window         movement of window
-    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                          padding='SAME')
+    return tf.nn.pool(x, [2], 'MAX', 'SAME', strides=[2])
 
 
-def convolutional_neural_network(x):
-    weights = {'W_conv1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
-               'W_conv2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
+def cnn_rnn(x):
+    weights = {'W_conv1': tf.Variable(tf.random_normal([5, 19, 32])),
+               'W_conv2': tf.Variable(tf.random_normal([5, 32, 64])),
                'out': tf.Variable(tf.random_normal([rnn_size, n_classes]))}
 
     biases = {'b_conv1': tf.Variable(tf.random_normal([32])),
               'b_conv2': tf.Variable(tf.random_normal([64])),
               'out': tf.Variable(tf.random_normal([n_classes]))}
-    aux = x
-    x = tf.reshape(x, [-1, 150, 19, 1])
-    conv1 = tf.nn.relu(conv2d(x, weights['W_conv1']) + biases['b_conv1'])
-    conv1 = maxpool2d(conv1)
-    conv2 = tf.nn.relu(conv2d(conv1, weights['W_conv2']) + biases['b_conv2'])
-    conv2 = maxpool2d(conv2)
-    x = aux
+    cnn_out = []
+
+    conv1 = tf.nn.relu(conv1d(x,
+                       weights['W_conv1']) + biases['b_conv1'])
+    conv1 = maxpool1d(conv1)
+    conv2 = tf.nn.relu(conv1d(conv1,
+                       weights['W_conv2']) + biases['b_conv2'])
+    conv2 = maxpool1d(conv2)
+    #    cnn_out.append(conv2)
     x = tf.transpose(x, [1, 0, 2])
     x = tf.reshape(x, [-1, chunk_size])
     x = tf.split(x, n_chunks, 0)
@@ -63,12 +61,11 @@ def convolutional_neural_network(x):
     # fc = tf.nn.dropout(fc, keep_rate)
 
     output = tf.add(tf.matmul(outputs[-1], weights['out']), biases['out'])
-
     return output
 
 
 def train_neural_network(x):
-    prediction = convolutional_neural_network(x)
+    prediction = cnn_rnn(x)
     cost = tf.reduce_mean(
             tf.nn.softmax_cross_entropy_with_logits_v2(logits=prediction,
                                                        labels=y)
@@ -76,8 +73,8 @@ def train_neural_network(x):
     optimizer = tf.train.AdamOptimizer().minimize(cost)
     saver = tf.train.Saver()
     with tf.Session() as sess:
-        saver.restore(sess, "/tmp/model.ckpt")
-        print("Model restored.")
+        # saver.restore(sess, "/tmp/model.ckpt")
+        # print("Model restored.")
         sess.run(tf.global_variables_initializer())
         for epoch in range(hm_epochs):
             epoch_loss = 0
