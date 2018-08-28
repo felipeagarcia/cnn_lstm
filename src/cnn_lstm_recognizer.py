@@ -4,13 +4,13 @@ import data_handler as data
 import numpy as np
 
 # data format: 150 x 19
-hm_epochs = 1000
+hm_epochs = 10000
 n_classes = 20
-batch_size = 8
+batch_size = 4
 chunk_size = 19
-n_chunks = 153
-rnn_size = 124
-max_len = 153
+n_chunks = 150
+rnn_size = 128
+max_len = 150
 
 x = tf.placeholder(tf.float32, [None, n_chunks, chunk_size])
 y = tf.placeholder('float', [None, n_classes])
@@ -19,6 +19,7 @@ y = tf.placeholder('float', [None, n_classes])
 # keep_prob = tf.placeholder(tf.float32)
 
 inputs, labels = data.open_data(max_len=max_len)
+print(len(inputs), np.array(inputs).shape)
 inputs, labels = np.array(inputs), np.array(labels)
 test_inputs = inputs[int(0.8*len(inputs)):len(inputs)]
 test_labels = labels[int(0.8*len(labels)):len(labels)]
@@ -27,34 +28,41 @@ labels = labels[0:int(0.8*len(labels))]
 
 
 def conv1d(x, W):
-    return tf.nn.conv1d(x, W, stride=2, padding='SAME')
+    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
 
 def maxpool1d(x):
     #                        size of window         movement of window
-    return tf.nn.pool(x, [2], 'MAX', 'SAME', strides=[2])
+    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
+                          padding='SAME')
 
 
 def cnn_rnn(x):
-    weights = {'W_conv1': tf.Variable(tf.random_normal([5, 19, 32])),
-               'W_conv2': tf.Variable(tf.random_normal([5, 32, 64])),
+    weights = {'W_conv1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
+               'W_conv2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
                'out': tf.Variable(tf.random_normal([rnn_size, n_classes]))}
 
     biases = {'b_conv1': tf.Variable(tf.random_normal([32])),
               'b_conv2': tf.Variable(tf.random_normal([64])),
               'out': tf.Variable(tf.random_normal([n_classes]))}
     cnn_out = []
-
+    x = tf.reshape(x, shape=[batch_size, n_chunks, chunk_size, 1])
     conv1 = tf.nn.relu(conv1d(x,
                        weights['W_conv1']) + biases['b_conv1'])
     conv1 = maxpool1d(conv1)
     conv2 = tf.nn.relu(conv1d(conv1,
                        weights['W_conv2']) + biases['b_conv2'])
     conv2 = maxpool1d(conv2)
-    #    cnn_out.append(conv2)
+    x = conv2
+    dims = conv2.get_shape()
+    number_of_elements = dims[2:].num_elements()
+    print(number_of_elements, dims)
+    x = tf.reshape(x, [-1, 38, number_of_elements])
+    # x = tf.reshape(x, [-1, n_chunks, chunk_size])
     x = tf.transpose(x, [1, 0, 2])
-    x = tf.reshape(x, [-1, chunk_size])
-    x = tf.split(x, n_chunks, 0)
+    x = tf.reshape(x, [-1, number_of_elements])
+    x = tf.split(x, 38, 0)
+    # print(np.array(x).shape)
     lstm_cell = rnn.BasicLSTMCell(rnn_size)
     outputs, states = rnn.static_rnn(lstm_cell, x, dtype=tf.float32)
 

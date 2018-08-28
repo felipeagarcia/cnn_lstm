@@ -30,7 +30,8 @@ def open_data(max_len, num_activities=20, num_seqs=10):
                 aux = list(csv.reader(file))
                 aux = [list(map(float, x)) for x in aux]
                 while(len(aux) < max_len):
-                    aux.insert(0, list(np.zeros(len(aux[-1]))))
+                    aux.insert(-1, np.zeros(19))
+                aux = aux[:max_len]
                 data.append(aux)
                 label = np.zeros(num_activities)
                 label[int(i) - 1] = 1
