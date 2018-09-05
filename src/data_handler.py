@@ -40,10 +40,15 @@ def open_data(max_len, num_activities=20, num_seqs=10):
             j = int(j)
             i -= 1
             j -= 1
+    data, labels = shuffle_data_and_labels(data, labels)
+    data = [norm(x) for x in data]
+    return data, labels
+
+
+def shuffle_data_and_labels(data, labels):
     aux = list(zip(data, labels))
     np.random.shuffle(aux)
     data[:], labels[:] = zip(*aux)
-    data = [norm(x) for x in data]
     return data, labels
 
 

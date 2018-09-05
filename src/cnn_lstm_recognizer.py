@@ -6,7 +6,7 @@ import numpy as np
 # data format: 150 x 19
 hm_epochs = 10000
 n_classes = 20
-batch_size = 4
+batch_size = 20
 chunk_size = 19
 n_chunks = 150
 rnn_size = 128
@@ -15,8 +15,7 @@ max_len = 150
 x = tf.placeholder(tf.float32, [None, n_chunks, chunk_size])
 y = tf.placeholder('float', [None, n_classes])
 
-# keep_rate = 0.8
-# keep_prob = tf.placeholder(tf.float32)
+dropout_rate = 0.8
 
 inputs, labels = data.open_data(max_len=max_len)
 print(len(inputs), np.array(inputs).shape)
@@ -38,15 +37,15 @@ def maxpool1d(x):
 
 
 def cnn_rnn(x):
-    weights = {'W_conv1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
-               'W_conv2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
+    weights = {'W_conv1': tf.Variable(tf.random_normal([5, 1, 1, 32])),
+               'W_conv2': tf.Variable(tf.random_normal([5, 1, 32, 64])),
                'out': tf.Variable(tf.random_normal([rnn_size, n_classes]))}
 
     biases = {'b_conv1': tf.Variable(tf.random_normal([32])),
               'b_conv2': tf.Variable(tf.random_normal([64])),
               'out': tf.Variable(tf.random_normal([n_classes]))}
     cnn_out = []
-    x = tf.reshape(x, shape=[batch_size, n_chunks, chunk_size, 1])
+    x = tf.reshape(x, shape=[-1, n_chunks, chunk_size, 1])
     conv1 = tf.nn.relu(conv1d(x,
                        weights['W_conv1']) + biases['b_conv1'])
     conv1 = maxpool1d(conv1)
@@ -64,6 +63,8 @@ def cnn_rnn(x):
     x = tf.split(x, 38, 0)
     # print(np.array(x).shape)
     lstm_cell = rnn.BasicLSTMCell(rnn_size)
+    lstm_cell = tf.contrib.rnn.DropoutWrapper(lstm_cell,
+                                              output_keep_prob=dropout_rate)
     outputs, states = rnn.static_rnn(lstm_cell, x, dtype=tf.float32)
 
     # fc = tf.nn.dropout(fc, keep_rate)
@@ -96,8 +97,11 @@ def train_neural_network(x):
                 i += batch_size
             print('Epoch', epoch, 'completed out of',
                   hm_epochs, 'loss:', epoch_loss)
-            correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
-            accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
+            if(epoch % 200 == 0):
+                correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
+                accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
+                print('Accuracy:', accuracy.eval({x: np.array(test_inputs),
+                                                  y: np.array(test_labels)}))
         correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
         print('Accuracy:', accuracy.eval({x: np.array(test_inputs),
